@@ -101,8 +101,10 @@ rsync -a --delete \
 [[ -f "$TMP/preserve/templates/env.local.sh.template" ]] && \
   cp -a "$TMP/preserve/templates/env.local.sh.template" "$DEST/kit/docs/_harness/tools/env.local.sh.template"
 
-# Drop any leaked env.local.sh
+# Drop any leaked project-local files
 rm -f "$DEST/kit/docs/_harness/tools/env.local.sh"
+rm -f "$DEST/kit/docs/_harness/ENVIRONMENT.md"
+rm -f "$DEST/kit/docs/_harness/status.md"
 
 # MCP payloads
 rsync -a --delete --exclude '.venv' --exclude '__pycache__' --exclude '*.egg-info' --exclude '.git' \
