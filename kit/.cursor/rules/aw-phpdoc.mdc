@@ -1,0 +1,65 @@
+---
+description: PHPDoc for Aheadworks PHP — methods only, no @inheritdoc, simple @param types
+globs: app/code/Aheadworks/**/*.php
+alwaysApply: false
+---
+
+# Aheadworks PHPDoc
+
+## Methods (interface and implementation)
+
+Every public/protected/private method must have a real PHPDoc: short description + `@param` / `@return` / `@throws` as needed. **`@inheritdoc` is forbidden.**
+
+```php
+/**
+ * Get Preview
+ *
+ * @param int $id
+ * @return array
+ */
+public function getPreview(int $id): array
+```
+
+### `__construct`
+
+Document **parameters only** — no method summary line.
+
+```php
+/**
+ * @param Context $context
+ * @param ShippingClassRepositoryInterface $shippingClassRepository
+ */
+public function __construct(
+    Context $context,
+    private readonly ShippingClassRepositoryInterface $shippingClassRepository
+) {
+```
+
+### `@param` types
+
+Keep types simple. Do **not** use nested generics / shaped arrays.
+
+```php
+// ❌
+@param array<int, array<string, string>> $res
+
+// ✅
+@param array $res
+```
+
+## Classes
+
+Do **not** add a class-level docblock by default. Document **methods**, not the class.
+
+```php
+// ❌
+/**
+ * Save shipping class controller.
+ */
+class Save extends ShippingClass
+
+// ✅
+class Save extends ShippingClass
+```
+
+Add a class docblock only in rare cases when the class itself holds non-obvious complex logic that methods alone cannot explain.

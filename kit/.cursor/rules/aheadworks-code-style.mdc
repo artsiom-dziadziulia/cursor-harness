@@ -1,0 +1,47 @@
+---
+description: Follow Aheadworks module code style and architecture when AW modules exist in the project
+globs: app/code/Aheadworks/**/*
+alwaysApply: false
+---
+
+# Aheadworks code style & approach
+
+When this project contains Aheadworks modules under `app/code/Aheadworks/`, treat those modules as the **primary reference** for code style, architecture, and admin patterns — ahead of generic Magento “clean code” inventions.
+
+Also read and follow the Magento 2 coding standards in `/home/leqtor/.cursor/rule-templates/magento2-coding-standards.mdc`.
+
+## How to decide
+
+1. Find a sibling Aheadworks module that already solves the same problem (Save, Repository, MassAction, Validator, UI DataProvider).
+2. Mirror that module’s structure and naming before inventing a new abstraction.
+3. Prefer **one** simple Aheadworks pattern over multi-layer “enterprise” scaffolding.
+
+## Preferred patterns (from Sarp2 / Rma / RewardPoints)
+
+- **Admin Save:** thin controller. Extract `Model/{Entity}/PostDataProcessor` **only** when prepare logic is non-trivial (logo upload, multiselect normalization, many fieldsets — e.g. Shipping Method). For small forms (Class, Class Rule, simple Rate flags) keep a private `prepareEntityData()` / inline prep in the controller. Do **not** put PostDataProcessor under `Controller/`. Avoid Composite chains unless the entity is as complex as Sarp2 Plan.
+- **Hydration:** `DataObjectHelper::populateWithArray($entity, $data, *Interface::class)` then repository `save()`.
+- **Factories in Save:** prefer `Api\Data\*InterfaceFactory` (with DI preference Interface → Model).
+- **Repositories:** `resource->save/load/delete`, rethrow `LocalizedException`, wrap unexpected errors as `CouldNotSaveException(__($e->getMessage()))`. No `instanceof ConcreteModel` gates.
+- **Mass actions:** `AbstractMassAction` + `massAction(Collection $collection)` (Rma).
+- **Validators:** colocated as `Model/{Entity}/Validator` when introducing new ones; throw concrete `LocalizedException` messages.
+- **Field keys:** use `Api\Data\*Interface` constants (see `aw-str-api-data-constants`).
+
+## Keep (modern Magento — do not “downgrade” to old AW)
+
+- `declare(strict_types=1)` and constructor property promotion
+- `HttpPostActionInterface` / `HttpGetActionInterface`
+- Typed Api\Data getters where already present
+- Thin `Controller/Adminhtml/{Entity}.php` with `ADMIN_RESOURCE`
+
+## Related project rules (always follow when editing AW PHP)
+
+- `aw-phpdoc` — method PHPDocs required; no `@inheritdoc`; no class docblocks by default; simple `@param` types
+- `aw-data-persistor-key` — one `DATA_PERSISTOR_KEY` on the entity Model, reused by Save + DataProvider
+- `aw-resource-main-table` — `MAIN_TABLE` on ResourceModel; no hardcoded table names
+- `aw-str-api-data-constants` — field keys via `Api\Data\*Interface` constants (ShippingTableRates)
+
+## Avoid
+
+- Ad-hoc helpers that duplicate Aheadworks naming (`FieldsetPayloadMapper`, AjaxSaveResponseBuilder, deep PostDataProcessor trees) unless an AW module in this project already uses the same idea
+- Wrapping validation errors as `Could not save X: …` and hiding the real message
+- Putting business defaults in Save controllers — put them in repository / model / PostDataProcessor

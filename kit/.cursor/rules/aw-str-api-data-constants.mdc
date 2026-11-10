@@ -1,0 +1,23 @@
+---
+description: Use Api\Data interface constants for entity field keys in ShippingTableRates
+globs: app/code/Aheadworks/ShippingTableRates/**/*.php
+alwaysApply: false
+---
+
+# Api\Data field constants
+
+When reading or writing entity field keys in PHP arrays (DataProviders, Save controllers, repositories, listings, etc.), **always** use constants from the matching `Api\Data\*Interface` — never hardcode strings like `'use_config_rounding_precision'`, `'method_id'`, `'is_active'`.
+
+```php
+// ❌
+$data['use_config_rounding_precision'] = '1';
+$data['is_active'] = 1;
+
+// ✅
+use Aheadworks\ShippingTableRates\Api\Data\ShippingMethodInterface;
+
+$data[ShippingMethodInterface::USE_CONFIG_ROUNDING_PRECISION] = '1';
+$data[ShippingMethodInterface::IS_ACTIVE] = 1;
+```
+
+Do not invent parallel string keys. If a constant is missing on the interface, add it there first.

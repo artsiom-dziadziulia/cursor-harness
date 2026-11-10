@@ -1,0 +1,23 @@
+[project]
+name = "magento-wiring-mcp"
+version = "0.1.0"
+description = "MCP server: Magento 2 XML wiring (di.xml plugins/preferences, events, webapi, routes)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "mcp>=1.0,<2",
+]
+
+[project.scripts]
+magento-wiring-mcp = "magento_wiring_mcp.server:main"
+magento-wiring-ui = "magento_wiring_mcp.webapp:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+magento_wiring_mcp = ["static/*"]

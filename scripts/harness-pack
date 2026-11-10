@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Convenience entrypoint: rebuild aw-harness kit from SoT Magento project.
+# Usage: harness-pack [--source PATH]
+set -euo pipefail
+SOURCE="${BASH_SOURCE[0]}"
+while [[ -L "$SOURCE" ]]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+KIT_ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+exec "$KIT_ROOT/pack.sh" "$@"

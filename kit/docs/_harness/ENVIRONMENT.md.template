@@ -1,0 +1,76 @@
+# Environment
+
+Filled by `aw-harness-init` / `install.sh`. Edit `docs/_harness/tools/env.local.sh` if the machine changes.
+
+## Topology
+
+| Item | Value |
+|---|---|
+| Stack | `{{STACK_KIND}}` |
+| Runtime | `{{AW_RUNTIME}}` (`docker` = PHP in container; `host` = PHP on the machine) |
+| Magento root on the host | `{{MAGENTO_ROOT}}` |
+| Magento version | **{{MAGENTO_VERSION}}** |
+| Compose / stack directory | `{{COMPOSE_DIR}}` (project name `{{COMPOSE_PROJECT}}`) |
+| PHP container / process | `{{PHP_CONTAINER}}` |
+| Magento path in runtime | `{{RUNTIME_MAGENTO_ROOT}}` |
+| Aheadworks code path | `{{MAGENTO_CODE_PATH}}` |
+| Start hint | `{{STACK_HINT}}` |
+
+### Docker stacks (markshust / pystacker / other)
+
+If `{{PHP_CONTAINER}}` is not running, ask the user to start the stack (`{{STACK_HINT}}`). Do not start Docker yourself unless the user asks.
+
+Typical Mark Shust:
+
+```bash
+cd {{COMPOSE_DIR}}
+bin/start
+bin/cli bash
+bin/magento cache:flush
+```
+
+Typical compose / pystacker:
+
+```bash
+cd {{COMPOSE_DIR}}
+docker compose up -d
+docker exec -it {{PHP_CONTAINER}} bash
+```
+
+### Host PHP
+
+Gates run with `cd {{MAGENTO_ROOT}}` and the host `php` / `vendor/bin/*`. Ensure `vendor/` is installed on the host.
+
+## Harness tools
+
+From Magento root (`{{MAGENTO_ROOT}}`):
+
+```bash
+docs/_harness/tools/drift.sh <Module>
+docs/_harness/tools/gates.sh <Module>
+docs/_harness/tools/sync.sh --module <Module>   # docker volume layouts only
+docs/_harness/tools/check-harness.sh
+docs/_harness/tools/cbm-index-module.sh <Module>
+```
+
+Overrides live in `docs/_harness/tools/env.local.sh` (sourced by `env.sh`).
+
+## MCP
+
+- **magento-wiring** — project `.cursor/mcp.json` (`MAGENTO_ROOT` / `MAGENTO_CODE_PATH`).
+- **codebase-memory-mcp** — user-level Cursor MCP (snippet: `.cursor/mcp.user-codebase-memory.snippet.json`).
+- Wiring UI (optional): from the wiring MCP home, `MAGENTO_ROOT=… .venv/bin/magento-wiring-ui` → http://127.0.0.1:9750/
+
+## Project-specific notes
+
+Fill after install (examples from SoT / your project):
+
+- Modules **without** `.git` (no MR): list them here.
+- Blocked / dangerous modules (e.g. `Aheadworks_Sarp3Server` if enabling it breaks REST/GraphQL/cron): document the stop condition here.
+- Bind-mount vs volume layout details for `app/code`, `vendor/`, etc.
+
+## Test infrastructure
+
+- Run PHPUnit with `docs/_harness/tools/phpunit/phpunit.xml` (gates copy it into the runtime).
+- Do not configure integration tests without user approval.
+- Do not assume payment sandbox credentials or storefront theme without checking the project.

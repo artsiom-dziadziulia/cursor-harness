@@ -1,0 +1,40 @@
+---
+description: Resource models must declare MAIN_TABLE and reference it everywhere
+globs: app/code/Aheadworks/**/Model/ResourceModel/**/*.php
+alwaysApply: false
+---
+
+# ResourceModel `MAIN_TABLE`
+
+Every DB resource model must declare the table name as a constant and use that constant — never hardcode the table string in `_init`, queries, setup references from PHP, etc.
+
+```php
+class ShippingClass extends AbstractDb
+{
+    public const MAIN_TABLE = 'aw_str_shipping_class';
+
+    /**
+     * Initialize table and primary key.
+     *
+     * @return void
+     */
+    protected function _construct(): void
+    {
+        $this->_init(self::MAIN_TABLE, ShippingClassInterface::CLASS_ID);
+    }
+}
+```
+
+Elsewhere (collections, joins, raw selects in the same module):
+
+```php
+// ✅
+->from($resource->getTable(ShippingClass::MAIN_TABLE), …)
+// or inside the resource: self::MAIN_TABLE / $this->getMainTable()
+
+// ❌
+->from('aw_str_shipping_class', …)
+$this->_init('aw_str_shipping_class', 'class_id');
+```
+
+Prefer `Api\Data\*Interface` constants for column/PK names; `MAIN_TABLE` is only for the table name.

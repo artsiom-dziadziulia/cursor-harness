@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "browsermcp": {
+      "command": "npx",
+      "args": ["@browsermcp/mcp@latest"]
+    },
+    "magento-wiring": {
+      "command": "{{WIRING_MCP_BIN}}",
+      "env": {
+        "MAGENTO_ROOT": "{{MAGENTO_ROOT}}",
+        "MAGENTO_CODE_PATH": "{{MAGENTO_CODE_PATH}}"
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+---
+description: Single DATA_PERSISTOR_KEY for admin form Save + DataProvider
+globs: app/code/Aheadworks/**/*.php
+alwaysApply: false
+---
+
+# Data persistor key — one declaration
+
+Do **not** duplicate `private const DATA_PERSISTOR_KEY = '…'` in both Save controller and Form DataProvider.
+
+## Where to declare
+
+Put a **public** constant once on the entity **Model** (or a dedicated small constants holder for that entity if the Model is wrong place):
+
+```php
+// Model/ShippingClass.php
+public const DATA_PERSISTOR_KEY = 'aw_str_shipping_class';
+```
+
+## Where to use
+
+```php
+// Controller Save + Ui DataProvider
+$this->dataPersistor->set(ShippingClass::DATA_PERSISTOR_KEY, $data);
+$this->dataPersistor->get(ShippingClass::DATA_PERSISTOR_KEY);
+$this->dataPersistor->clear(ShippingClass::DATA_PERSISTOR_KEY);
+```
+
+If Save already depends only on `Api\Data\*Interface`, importing the Model solely for this constant is fine — prefer that over a second string copy.
+
+## Avoid
+
+- Same string literal in two classes
+- Parallel private consts with identical values in Save and DataProvider

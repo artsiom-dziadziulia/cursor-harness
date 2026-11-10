@@ -1,0 +1,47 @@
+# AGENTS.md — project instructions for AI agents
+
+Magento **{{MAGENTO_VERSION}}** project used to develop and maintain **Aheadworks** extensions
+(`{{MAGENTO_CODE_PATH}}/*`). Stack: **{{STACK_KIND}}** (runtime `{{AW_RUNTIME}}`).
+CLI: `{{PHP_CONTAINER}}` · Magento in runtime: `{{RUNTIME_MAGENTO_ROOT}}`.
+Details: `docs/_harness/ENVIRONMENT.md`.
+
+## Read first
+
+1. [`docs/_harness/WORKFLOW.md`](docs/_harness/WORKFLOW.md) — the only allowed process for bugs and features (ticket → analysis → plan → **user approval** → code → review → gates → docs → hand-over).
+2. [`docs/README.md`](docs/README.md) — module catalog and dependency graph.
+3. `docs/<Module>/AGENTS.md` — before touching or analysing a module (the module rule `.cursor/rules/modules/*.mdc` points to it; read it once per chat). **Prefer Codebase Memory MCP** when the module is indexed — see [`docs/_harness/CODEBASE_MEMORY.md`](docs/_harness/CODEBASE_MEMORY.md). For Magento XML wiring (plugins, preferences, observers, webapi, routes) use **magento-wiring** MCP — [`docs/_harness/MAGENTO_WIRING_MCP.md`](docs/_harness/MAGENTO_WIRING_MCP.md).
+4. [`docs/_harness/ENVIRONMENT.md`](docs/_harness/ENVIRONMENT.md) — container, sync, commands. [`docs/_harness/QUALITY_GATES.md`](docs/_harness/QUALITY_GATES.md) — checks.
+
+## Non-negotiable rules
+
+- **Plan approval first.** No code edits until the user approved the plan (Gate A in the task `status.md`). Commands: `/aw-task`, `/aw-approve`, `/aw-continue`; trivial one-module changes: `/aw-simple-task` (approval of a mini-plan in chat).
+  **Exception:** `/aw-without-harness` — turns the **process** off (no approval, artifacts, harness subagents, gates); still **reads** `docs/<Module>/` and needed `docs/`, follows **code standards**, uses **CBM + magento-wiring MCP**; **writes** module docs only if the user says yes to the end-of-task ask (see the skill). Git, CI, dependency, DB and container rules below still apply.
+- **Git is read-only.** Only `status`, `diff`, `log`, `show`, `blame`, `branch --show-current`, `rev-parse`. Never commit, push, checkout, stash, reset, restore, merge, rebase. The user does all git writes.
+- **No CI.** Never trigger pipelines or call APIs that change Bitbucket/Teamwork state.
+- **No dependency changes** (`composer`, `npm`) and no destructive DB actions without explicit user approval.
+- **PHP tooling runs in the project runtime** (`AW_RUNTIME` in `docs/_harness/tools/env.local.sh`: `docker` or `host`). Do not invent a second Magento tree. Run `drift.sh` / `gates.sh` from `docs/_harness/tools/`. On docker stacks with a bind-mounted `app/code`, do not copy module files into the container and do not run PHP tooling on the host. On volume-only layouts use `sync.sh`. `sync.sh` skips bind-mounted paths when applicable. Never copy container → host blindly.
+- **Each module is its own git repo** under `{{MAGENTO_CODE_PATH}}/<Module>/.git` unless noted in `docs/_harness/ENVIRONMENT.md` (modules without `.git` → no MR). Never add files inside module directories that are not part of the change (no docs, notes or AGENTS.md there).
+- **Project-specific stop conditions** (disabled modules, known blockers) — see `docs/_harness/ENVIRONMENT.md`. If a task would enable a blocked module, stop and ask.
+- **Document everything:** task artifacts in `docs/tasks/<ID>-<slug>/`; module docs in `docs/<Module>/` are updated in the same task as the code change.
+- **Language:** files the user reads (`status.md`, `00_intake.md`, `01_analysis.md`, `02_plan.md`, `plan/`, module docs) and chat summaries in **Russian**; internal working logs (`impl/`, `review/`, review files, `05_test_report.md`, `journal.md`), code, identifiers, commit messages and MR text in **English**.
+- **Context economy:** read only the files and sections you need (Grep the heading first in large docs); keep `status.md` a short dashboard; subagents return ≤ 10 lines.
+- **Codebase Memory (CBM):** maintain **exactly two** indexes — `{{MAGENTO_CODE_PATH}}` and `docs`. If missing, `/aw-cbm-ensure-index` → `docs/_harness/tools/cbm-ensure-index.sh` (indexes only absent roots). When they exist, **read code and module docs through CBM tools first** (`search_graph`, `search_code`, `trace_path`, `get_code_snippet`, `get_file_outline`, `check_index_coverage`), scoping by module path. Fall back to `Read`/`Grep` on coverage gaps or if MCP is unavailable. After `/aw-document-module` or S7 doc updates, reindex with `docs/_harness/tools/cbm-index-module.sh`. Never create per-module indexes. Details: `docs/_harness/CODEBASE_MEMORY.md`. Disk files remain the source of truth for git and harness checks.
+- **Magento wiring MCP:** for `di.xml` / `events.xml` / `webapi.xml` / `routes.xml` use `module_wiring` / `list_plugins` / … (not CBM alone). See `docs/_harness/MAGENTO_WIRING_MCP.md`.
+
+## Coding standards
+
+- `.cursor/rules/aheadworks-code-style.mdc` (Aheadworks patterns first), `aw-phpdoc.mdc`, `aw-data-persistor-key.mdc`, `aw-resource-main-table.mdc`, `aw-str-api-data-constants.mdc`.
+- Code must work on PHP 8.2–8.5 and Magento 2.4.6–2.4.9 (module CI matrix); match local runtime in `ENVIRONMENT.md` (developer mode when applicable).
+- Match the surrounding module code; mirror a sibling Aheadworks module before inventing abstractions.
+
+## Roles (subagents in `.cursor/agents/00-harness/`)
+
+`aw-analyst` · `aw-spec-reviewer` · `aw-planner` · `aw-plan-reviewer` · `aw-developer` · `aw-code-reviewer` ·
+`aw-qa` · `aw-doc-keeper` · `aw-module-documenter`.
+Domain helpers (consult only, never write task artifacts): `.cursor/agents/10-domain-helpers/` (`magento-issue-debugger`,
+`magento-security-analyst`, `magento-index-analyst`, `magento-hyva-specialist`). Other specialists are archived in
+`.cursor/agents-library/` (not loaded; move a file back into `.cursor/agents/10-domain-helpers/` to enable it).
+
+## Legacy (do not use for new work)
+
+`.cursor/agents-master/`, `.cursor/agents-ilya/`, `.cursor/docs/implementation/`, `.cursor/tz/` — earlier pipelines and artifacts, kept for history.

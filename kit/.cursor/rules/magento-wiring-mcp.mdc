@@ -1,0 +1,16 @@
+---
+description: Magento XML wiring (di/events/webapi/routes) via magento-wiring MCP — use with Aheadworks modules
+globs: app/code/Aheadworks/**
+alwaysApply: false
+---
+
+# Magento wiring MCP
+
+For plugins, preferences, observers, webapi, and routes **do not rely on Codebase Memory alone**.
+
+1. Call `module_wiring("<Module>")` on the **magento-wiring** MCP first.
+2. Drill with `list_plugins` / `list_preferences` / `list_observers` / `list_webapi` / `list_routes` as needed.
+3. Confirm PHP behaviour via CBM or disk `Read`.
+4. After editing `etc/*.xml`, call `refresh_index`.
+
+Protocol: `docs/_harness/MAGENTO_WIRING_MCP.md`. PHP call graphs stay on CBM (`docs/_harness/CODEBASE_MEMORY.md`).

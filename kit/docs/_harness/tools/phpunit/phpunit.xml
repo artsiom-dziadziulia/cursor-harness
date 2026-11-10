@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Harness PHPUnit 9.5 config. Copied to /tmp/aw-harness/ inside the web container by run-gates.sh -->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="/var/www/html/vendor/phpunit/phpunit/phpunit.xsd"
+         colors="false"
+         columns="max"
+         beStrictAboutTestsThatDoNotTestAnything="false"
+         bootstrap="/tmp/aw-harness/bootstrap.php">
+    <php>
+        <includePath>.</includePath>
+        <ini name="memory_limit" value="-1"/>
+        <ini name="date.timezone" value="America/Los_Angeles"/>
+        <ini name="xdebug.max_nesting_level" value="200"/>
+    </php>
+</phpunit>

@@ -1,0 +1,18 @@
+# Local / generated
+*.pyc
+__pycache__/
+*.egg-info/
+.venv/
+.env
+.DS_Store
+*.swp
+*~
+
+# CBM binary is ~300MB — download at install time (GitHub 100MB limit)
+mcp/codebase-memory-mcp/codebase-memory-mcp
+
+# Pack / editor noise
+*.log
+.tmp/
+.idea/
+.vscode/

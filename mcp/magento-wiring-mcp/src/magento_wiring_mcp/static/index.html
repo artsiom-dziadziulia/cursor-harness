@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Magento Wiring · Galaxy</title>
+  <!-- UMD: one shared THREE (ESM importmap was black-screening the canvas) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.77.0/dist/3d-force-graph.min.js"></script>
+  <style>
+    :root {
+      --atlas-bg: #000000;
+      --atlas-panel: #0a0e0d;
+      --atlas-panel-raised: #0f1513;
+      --atlas-line: #1d2926;
+      --atlas-phosphor: #33ff99;
+      --atlas-phosphor-mute: #1f7f4c;
+      --atlas-dim: #84939d;
+      --atlas-fg: #c3d4cd;
+      --atlas-cyan: #66d9e8;
+      --atlas-alarm: #d26b72;
+      --atlas-select: #12251d;
+      --atlas-mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      --atlas-ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    body {
+      font: 13px/1.5 var(--atlas-ui-font);
+      background: var(--atlas-bg);
+      color: var(--atlas-fg);
+    }
+    .shell {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 48px minmax(0, 1fr);
+    }
+    .topbar {
+      display: flex; align-items: center; gap: 12px; padding: 0 14px;
+      border-bottom: 1px solid var(--atlas-line); background: var(--atlas-panel); z-index: 5;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 8px; font-weight: 650; letter-spacing: .04em;
+      font-size: 12px; text-transform: uppercase; color: var(--atlas-phosphor); white-space: nowrap;
+    }
+    .brand i {
+      width: 10px; height: 10px; border-radius: 50%; background: var(--atlas-phosphor);
+      box-shadow: 0 0 14px var(--atlas-phosphor), 0 0 28px rgba(51,255,153,.35);
+    }
+    .topbar .meta { color: var(--atlas-dim); font-size: 12px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topbar .actions { display: flex; gap: 8px; }
+    button, .btn {
+      appearance: none; border: 1px solid var(--atlas-line); background: var(--atlas-panel-raised);
+      color: var(--atlas-fg); border-radius: 6px; padding: 6px 10px; font: inherit; font-size: 12px;
+      cursor: pointer; text-decoration: none;
+    }
+    button:hover, .btn:hover { border-color: var(--atlas-phosphor-mute); }
+    button.active {
+      border-color: color-mix(in srgb, var(--atlas-phosphor) 55%, transparent);
+      background: var(--atlas-select); color: var(--atlas-phosphor);
+    }
+    button.ghost { background: transparent; color: var(--atlas-dim); }
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+    }
+    .side {
+      min-height: 0;
+      border-right: 1px solid var(--atlas-line); background: var(--atlas-panel);
+      display: flex; flex-direction: column;
+    }
+    .side-head { padding: 10px 12px; border-bottom: 1px solid var(--atlas-line); flex: 0 0 auto; }
+    .side-head h2 { margin: 0 0 8px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--atlas-dim); }
+    .side input {
+      width: 100%; min-height: 32px; padding: 6px 10px; border-radius: 6px;
+      border: 1px solid #1d2926; background: #050807a6; color: var(--atlas-fg); font: inherit;
+    }
+    .mod-list { list-style: none; margin: 0; padding: 8px; overflow: auto; flex: 1; min-height: 0; }
+    .mod-list a {
+      display: flex; justify-content: space-between; gap: 8px; padding: 7px 8px; border-radius: 6px;
+      color: var(--atlas-fg); text-decoration: none; border: 1px solid transparent; font-size: 12px;
+    }
+    .mod-list a:hover { background: var(--atlas-panel-raised); }
+    .mod-list a.active {
+      background: var(--atlas-select); border-color: color-mix(in srgb, var(--atlas-phosphor) 35%, transparent);
+      color: var(--atlas-phosphor);
+    }
+    .mod-list a.all { font-weight: 650; color: var(--atlas-cyan); margin-bottom: 4px; }
+    .mod-list .badge { color: var(--atlas-dim); font-family: var(--atlas-mono); font-size: 10px; }
+    .main {
+      min-width: 0; min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+    .galaxy-bar {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      padding: 8px 12px; border-bottom: 1px solid var(--atlas-line); background: var(--atlas-panel);
+      flex: 0 0 auto;
+    }
+    .galaxy-bar label {
+      display: inline-flex; align-items: center; gap: 5px; color: var(--atlas-dim); font-size: 11px; user-select: none;
+    }
+    .galaxy-bar select {
+      background: var(--atlas-panel-raised); color: var(--atlas-fg); border: 1px solid var(--atlas-line);
+      border-radius: 4px; padding: 2px 6px; font: inherit;
+    }
+    .sep { width: 1px; height: 18px; background: var(--atlas-line); margin: 0 2px; }
+    #viewBody {
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+    .stage-wrap {
+      height: 100%;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+    }
+    .stage {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+      background: #000;
+    }
+    #graph3d {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .hint {
+      position: absolute; left: 12px; bottom: 10px; z-index: 2;
+      color: var(--atlas-dim); font-size: 11px; pointer-events: none;
+      text-shadow: 0 1px 4px #000;
+    }
+    .inspector {
+      border-left: 1px solid var(--atlas-line); background: var(--atlas-panel);
+      overflow: auto; padding: 12px; min-height: 0; height: 100%;
+    }
+    .inspector h3 { margin: 0 0 8px; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--atlas-dim); }
+    .inspector .title { font-size: 14px; font-weight: 650; margin-bottom: 6px; word-break: break-word; }
+    .inspector code { font-family: var(--atlas-mono); font-size: 11px; color: var(--atlas-cyan); word-break: break-all; }
+    .inspector .row { margin: 8px 0; padding: 8px; border: 1px solid var(--atlas-line); border-radius: 8px; background: #050807; }
+    .inspector .muted { color: var(--atlas-dim); font-size: 12px; }
+    .pill {
+      display: inline-block; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--atlas-line);
+      color: var(--atlas-dim); font-size: 10px; font-family: var(--atlas-mono); margin-right: 4px;
+    }
+    .pill.hot { color: var(--atlas-phosphor); border-color: var(--atlas-phosphor-mute); }
+    .empty, .err { padding: 24px; color: var(--atlas-dim); }
+    .err { color: var(--atlas-alarm); }
+    .tables { padding: 12px 14px; overflow: auto; height: 100%; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .card { border: 1px solid var(--atlas-line); background: var(--atlas-panel); border-radius: 8px; padding: 10px; }
+    .card .n { font: 650 18px/1.2 var(--atlas-mono); color: var(--atlas-phosphor); }
+    .card .l { margin-top: 4px; color: var(--atlas-dim); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { text-align: left; padding: 6px 7px; border-bottom: 1px solid var(--atlas-line); vertical-align: top; }
+    th { color: var(--atlas-dim); }
+    h4 { margin: 16px 0 6px; color: var(--atlas-dim); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+    @media (max-width: 960px) {
+      .workspace { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); }
+      .side { border-right: 0; border-bottom: 1px solid var(--atlas-line); }
+      .stage-wrap { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) 200px; }
+      .inspector { border-left: 0; border-top: 1px solid var(--atlas-line); }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><i></i> Wiring Galaxy</div>
+      <div class="meta" id="statsLine">Loading…</div>
+      <div class="actions">
+        <a class="btn ghost" href="http://127.0.0.1:9749/?workspace=galaxy" target="_blank" rel="noopener">CBM Lens</a>
+        <button type="button" id="refreshBtn">Refresh</button>
+      </div>
+    </header>
+    <div class="workspace">
+      <aside class="side">
+        <div class="side-head">
+          <h2>Explorer</h2>
+          <input id="filter" type="search" placeholder="Filter modules…" autocomplete="off" />
+        </div>
+        <ul class="mod-list" id="modList"></ul>
+      </aside>
+      <section class="main" id="main"><div class="empty">Loading…</div></section>
+    </div>
+  </div>
+  <script>
+    const THREE = window.THREE;
+    const ForceGraph3D = window.ForceGraph3D;
+
+    const state = {
+      modules: [], scope: "aheadworks", module: null,
+      data: null, tables: null, view: "galaxy", display: "galaxy",
+      selected: null, showLabels: "nearby", graph: null,
+    };
+
+    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+    // CBM Lens relationship palette
+    const EDGE = {
+      WRAPS: "#579fc7",
+      WRAPS_INBOUND: "#67c1cf",
+      PREFERENCE: "#ad7acf",
+      PREFERENCE_FOR: "#ad7acf",
+      PREFERENCE_TYPE: "#bc7db8",
+      OBSERVES: "#72b877",
+      HANDLES: "#aebb61",
+      CONTAINS: "#719f89",
+      VIRTUAL_OF: "#c6a05c",
+    };
+
+    function edgeColor(kind) {
+      return EDGE[kind] || "#84939d";
+    }
+
+    function hashHue(str) {
+      let h = 0;
+      for (let i = 0; i < String(str).length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+      return (h % 48) / 48; // slight coral variance
+    }
+
+    // CBM: bright white hubs, coral shell, leaf accents
+    function nodeColor(d, degree = 0) {
+      if (d.kind === "magento" || d.id === "Magento_core") return "#ffffff";
+      if (d.kind === "external") return "#e8eef2";
+      if (d.kind === "virtual") return "#dfb87a";
+      if (d.kind === "frontName") return "#67c1cf";
+      if (d.kind === "module") {
+        // high-degree / heavy modules → warmer white hub; others → coral shell
+        const plugins = d.plugins || 0;
+        if (degree >= 4 || plugins >= 40) return "#fff3d6";
+        if (degree >= 2 || plugins >= 15) return "#ffb07a";
+        const t = hashHue(d.id);
+        const r = 224 + Math.floor(t * 20);
+        const g = 90 + Math.floor(t * 40);
+        const b = 70 + Math.floor(t * 30);
+        return `rgb(${r},${g},${b})`;
+      }
+      if (d.kind === "plugin") return "#e07050";
+      if (d.kind === "inbound_plugin") return "#cb7fa9";
+      if (d.kind === "prefImpl" || d.kind === "interface") return "#ad7acf";
+      if (d.kind === "observer" || d.kind === "event") return "#72b877";
+      if (d.kind === "api" || d.kind === "route") return "#aebb61";
+      if (d.kind === "foreign_aw") return "#d58c60";
+      if (d.kind === "target") return "#c28676";
+      return "#84939d";
+    }
+
+    function kindColor(kind) {
+      return nodeColor({ kind });
+    }
+
+    function nodeVal(d) {
+      if (d.kind === "magento" || d.id === "Magento_core") return 6;
+      if (d.kind === "external") return 4;
+      if (d.kind === "module") return 2.2 + Math.min((d.plugins || 0) / 30, 2.5);
+      return 1.0;
+    }
+
+    // --- CBM Lens point textures (from CBM Lkt / Nkt) ---
+    let cbmDotTex = null;
+    let cbmHaloTex = null;
+
+    function getCbmDotTex() {
+      if (cbmDotTex) return cbmDotTex;
+      const i = 64;
+      const e = document.createElement("canvas");
+      e.width = e.height = i;
+      const t = e.getContext("2d");
+      const n = t.createRadialGradient(i / 2, i / 2, 0, i / 2, i / 2, i / 2);
+      n.addColorStop(0, "rgba(255,255,255,1)");
+      n.addColorStop(0.5, "rgba(255,255,255,0.9)");
+      n.addColorStop(1, "rgba(255,255,255,0)");
+      t.fillStyle = n;
+      t.fillRect(0, 0, i, i);
+      cbmDotTex = new THREE.CanvasTexture(e);
+      cbmDotTex.needsUpdate = true;
+      return cbmDotTex;
+    }
+
+    function getCbmHaloTex() {
+      if (cbmHaloTex) return cbmHaloTex;
+      const i = 128;
+      const e = document.createElement("canvas");
+      e.width = e.height = i;
+      const t = e.getContext("2d");
+      const n = t.createRadialGradient(i / 2, i / 2, 0, i / 2, i / 2, i / 2);
+      n.addColorStop(0, "rgba(255,255,255,0.9)");
+      n.addColorStop(0.35, "rgba(255,255,255,0.25)");
+      n.addColorStop(1, "rgba(255,255,255,0)");
+      t.fillStyle = n;
+      t.fillRect(0, 0, i, i);
+      cbmHaloTex = new THREE.CanvasTexture(e);
+      cbmHaloTex.needsUpdate = true;
+      return cbmHaloTex;
+    }
+
+    function mkPointGeo() {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0], 3));
+      return geo;
+    }
+
+    function glowObject(d) {
+      if (!THREE) return undefined;
+      const overview = state.scope === "aheadworks";
+      const degree = (state._degree && state._degree.get(d.id)) || 0;
+      const color = new THREE.Color(nodeColor(d, degree));
+      const isHub = d.kind === "magento" || d.id === "Magento_core";
+      const isModule = d.kind === "module" || d.kind === "external";
+
+      // CBM Tkt: PointsMaterial size≈4, alphaTest=.35, sizeAttenuation, toneMapped:false
+      let size = 4;
+      if (isHub) size = overview ? 10 : 8;
+      else if (isModule) size = overview ? 6 + Math.min(degree, 4) * 0.4 : 5.5;
+      else size = 3.5;
+
+      const mat = new THREE.PointsMaterial({
+        color,
+        size,
+        sizeAttenuation: true,
+        map: getCbmDotTex(),
+        alphaTest: 0.35,
+        transparent: true,
+        depthWrite: false,
+      });
+      if ("toneMapped" in mat) mat.toneMapped = false;
+
+      const pts = new THREE.Points(mkPointGeo(), mat);
+      // Landmark halos (CBM Akt): top hubs only — soft additive, opacity .28, size≈core*6
+      if (isHub || (isModule && overview && (degree >= 3 || (d.plugins || 0) >= 30))) {
+        const group = new THREE.Group();
+        group.add(pts);
+        const haloMat = new THREE.PointsMaterial({
+          color,
+          size: size * 6,
+          sizeAttenuation: true,
+          map: getCbmHaloTex(),
+          transparent: true,
+          opacity: 0.28,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        if ("toneMapped" in haloMat) haloMat.toneMapped = false;
+        group.add(new THREE.Points(mkPointGeo(), haloMat));
+        return group;
+      }
+      return pts;
+    }
+
+    function isStructuralLink(l) {
+      return l.kind === "CONTAINS";
+    }
+
+    function openModuleNode(d) {
+      if (!d) return;
+      if (d.isModule || d.kind === "module") {
+        history.pushState({}, "", `/module/${encodeURIComponent(d.id)}`);
+        openModule(d.id);
+        return;
+      }
+      if (d.module && state.modules.some(m => m.module === d.module)) {
+        history.pushState({}, "", `/module/${encodeURIComponent(d.module)}`);
+        openModule(d.module);
+      }
+    }
+
+    function inspectorHtml(sel) {
+      if (!sel) return `<h3>Selection</h3><div class="muted">Orbit · scroll zoom · click · double-click opens module</div>`;
+      if (sel._edge) {
+        return `<h3>Edge</h3>
+          <div class="title">${esc(sel.kind)}</div>
+          <div class="row"><span class="pill hot">${esc(sel.source?.id || sel.source)}</span> → <span class="pill hot">${esc(sel.target?.id || sel.target)}</span></div>
+          <div class="muted">count <code>${sel.count || 1}</code></div>
+          ${(sel.samples || []).map(s => `<div class="row"><code>${esc(s)}</code></div>`).join("")}
+          ${sel.sample ? `<div class="row"><code>${esc(sel.sample)}</code></div>` : ""}`;
+      }
+      const canOpen = sel.isModule || sel.kind === "module" || !!sel.module;
+      return `<h3>Node</h3>
+        <div class="title">${esc(sel.label || sel.id)}</div>
+        <div class="row"><span class="pill hot">${esc(sel.kind)}</span></div>
+        <div class="row"><code>${esc(sel.full || sel.id)}</code></div>
+        ${sel.module ? `<div class="muted">owner <code>${esc(sel.module)}</code></div>` : ""}
+        ${sel.plugins != null ? `<div class="muted">plugins ${sel.plugins} · observers ${sel.observers || 0}</div>` : ""}
+        ${canOpen ? `<div class="row" style="margin-top:10px"><button type="button" id="openModuleBtn" class="active">Open module</button></div>` : ""}`;
+    }
+
+    function destroyGraph() {
+      if (state._ro) { try { state._ro.disconnect(); } catch (_) {} state._ro = null; }
+      if (state.graph) {
+        try { state.graph._destructor && state.graph._destructor(); } catch (_) {}
+        state.graph = null;
+      }
+      const el = document.getElementById("graph3d");
+      if (el) el.innerHTML = "";
+    }
+
+    function draw3d(nodesIn, linksIn) {
+      destroyGraph();
+      const stage = document.getElementById("stage");
+      const info = document.getElementById("inspector");
+      if (!stage) return;
+      stage.innerHTML = `<div id="graph3d"></div><div class="hint">3D orbit · scroll zoom · click selects · double-click opens module</div>`;
+      info.innerHTML = inspectorHtml(state.selected);
+
+      if (!nodesIn.length) {
+        stage.innerHTML = `<div class="empty">No edges for current filters.</div>`;
+        return;
+      }
+
+      const nodeIds = new Set(nodesIn.map(n => n.id));
+      const nodes = nodesIn.map(n => ({ ...n }));
+      const links = linksIn
+        .map(l => ({
+          ...l,
+          source: typeof l.source === "object" ? l.source.id : l.source,
+          target: typeof l.target === "object" ? l.target.id : l.target,
+        }))
+        .filter(l => l.source && l.target && nodeIds.has(l.source) && nodeIds.has(l.target));
+
+      const degree = new Map();
+      links.forEach(l => {
+        if (isStructuralLink(l)) return;
+        degree.set(l.source, (degree.get(l.source) || 0) + 1);
+        degree.set(l.target, (degree.get(l.target) || 0) + 1);
+      });
+      state._degree = degree;
+
+      const overview = state.scope === "aheadworks";
+      const elem = document.getElementById("graph3d");
+      let lastClick = { id: null, t: 0 };
+      const g = ForceGraph3D({ controlType: "orbit", rendererConfig: { antialias: true, alpha: false, powerPreference: "high-performance" } })(elem)
+        .backgroundColor("#000000")
+        .graphData({ nodes, links })
+        .nodeId("id")
+        .nodeLabel(d => `${d.label || d.id}\n${d.kind}`)
+        .nodeVal(nodeVal)
+        .nodeColor(d => nodeColor(d, degree.get(d.id) || 0))
+        .nodeOpacity(1)
+        .nodeThreeObject(glowObject)
+        .nodeThreeObjectExtend(false)
+        .linkVisibility(l => {
+          if (!isStructuralLink(l)) return true;
+          // Module view: ownership spokes to hub are on by default (pairs must not float)
+          if (state.scope === "module") {
+            const el = document.getElementById("fContains");
+            return el ? el.checked : true;
+          }
+          return document.getElementById("fContains")?.checked === true;
+        })
+        .linkColor(l => edgeColor(l.kind))
+        .linkWidth(l => {
+          // CBM-thin hairlines; CONTAINS even thinner (structure only)
+          if (isStructuralLink(l)) return 0.05;
+          const c = l.count || 1;
+          if (overview) return Math.min(0.08 + Math.log2(c + 1) * 0.035, 0.28);
+          return Math.min(0.08 + c * 0.015, 0.25);
+        })
+        .linkOpacity(l => (isStructuralLink(l) ? 0.35 : 0.65))
+        .linkDirectionalParticles(l => {
+          if (isStructuralLink(l)) return 0;
+          const c = l.count || 1;
+          return overview ? (c >= 12 ? 1 : 0) : (c >= 8 ? 1 : 0);
+        })
+        .linkDirectionalParticleWidth(0.45)
+        .linkDirectionalParticleSpeed(0.005)
+        .linkDirectionalParticleColor(l => edgeColor(l.kind))
+        .showNavInfo(false)
+        .enableNodeDrag(false)
+        .cooldownTicks(overview ? 220 : 160)
+        .warmupTicks(overview ? 80 : 40)
+        .d3AlphaDecay(0.012)
+        .d3VelocityDecay(0.28)
+        .onNodeClick(d => {
+          const now = performance.now();
+          const isDbl = lastClick.id === d.id && (now - lastClick.t) < 350;
+          lastClick = { id: d.id, t: now };
+          if (isDbl) { openModuleNode(d); return; }
+          state.selected = d;
+          info.innerHTML = inspectorHtml(d);
+          const btn = document.getElementById("openModuleBtn");
+          if (btn) btn.onclick = () => openModuleNode(d);
+        })
+        .onLinkClick(l => {
+          state.selected = { ...l, _edge: true };
+          info.innerHTML = inspectorHtml(state.selected);
+        })
+        .onNodeDblClick(d => openModuleNode(d))
+        .onBackgroundClick(() => {
+          state.selected = null;
+          info.innerHTML = inspectorHtml(null);
+        });
+
+      const applyLabels = () => {
+        g.nodeLabel(d => {
+          if (state.showLabels === "all") return `${d.label || d.id}`;
+          if (state.showLabels === "selected") {
+            return (state.selected && !state.selected._edge && state.selected.id === d.id) ? (d.label || d.id) : "";
+          }
+          return (d.kind === "module" || d.kind === "magento" || d.kind === "external") ? (d.label || d.id) : "";
+        });
+      };
+      applyLabels();
+
+      if (state.display === "hierarchy") {
+        nodes.forEach(n => {
+          n._dagLevel = n.kind === "magento" || n.id === "Magento_core" ? 0
+            : n.kind === "module" ? 1
+            : 2;
+        });
+        g.dagMode("td").dagLevelDistance(overview ? 70 : 40);
+      } else {
+        g.dagMode(null);
+        if (overview) {
+          // Readable sphere around Magento_core (same edges, CBM spacing)
+          g.d3Force("charge").strength(n => (n.kind === "magento" ? -260 : -140));
+          g.d3Force("link")
+            .distance(l => {
+              const t = typeof l.target === "object" ? l.target.id : l.target;
+              const s = typeof l.source === "object" ? l.source.id : l.source;
+              if (t === "Magento_core" || s === "Magento_core") return 140;
+              return 160;
+            })
+            .strength(0.95);
+          if (g.d3Force("center")) g.d3Force("center").strength(0.85);
+          g.d3Force("cbmPull", (alpha) => {
+            for (const n of nodes) {
+              if (n.x == null) continue;
+              const k = 0.05 * alpha;
+              n.vx -= n.x * k;
+              n.vy -= n.y * k;
+              n.vz -= n.z * k;
+            }
+          });
+        } else {
+          g.d3Force("charge").strength(n => {
+            if (n.kind === "magento") return -10;
+            if (n.kind === "module") return -16;
+            return -6;
+          });
+          g.d3Force("link")
+            .distance(l => (l.kind === "CONTAINS" ? 10 : 14))
+            .strength(l => (l.kind === "CONTAINS" ? 1.1 : 0.85));
+          if (g.d3Force("center")) g.d3Force("center").strength(0.85);
+        }
+      }
+
+      const fit = (pad = 8, pull = 1) => {
+        try {
+          g.zoomToFit(400, pad);
+          if (overview && pull < 1) {
+            const p = g.camera().position;
+            g.cameraPosition(
+              { x: p.x * pull, y: p.y * pull, z: p.z * pull },
+              { x: 0, y: 0, z: 0 },
+              300
+            );
+          }
+        } catch (_) {}
+      };
+      setTimeout(() => fit(overview ? 4 : 8, overview ? 0.5 : 1), 1400);
+      setTimeout(() => fit(overview ? 2 : 8, overview ? 0.42 : 1), 2800);
+
+      const ro = new ResizeObserver(() => {
+        const w = stage.clientWidth;
+        const h = stage.clientHeight;
+        if (w > 0 && h > 0) g.width(w).height(h);
+      });
+      ro.observe(stage);
+      g.width(stage.clientWidth).height(stage.clientHeight);
+
+      state.graph = g;
+      state._labelApply = applyLabels;
+      state._ro = ro;
+    }
+
+    async function loadStats() {
+      const s = await (await fetch("/api/stats")).json();
+      document.getElementById("statsLine").textContent =
+        `${s.modules} modules · ${s.plugins} plugins · ${s.preferences} preferences · ${s.observers} observers · ${s.webapi} webapi`;
+    }
+    async function loadModules() {
+      state.modules = (await (await fetch("/api/modules")).json()).modules || [];
+      renderList();
+    }
+    function renderList() {
+      const q = document.getElementById("filter").value.trim().toLowerCase();
+      const ul = document.getElementById("modList");
+      let html = `<li><a href="/" class="all ${state.scope === "aheadworks" ? "active" : ""}" data-all="1">All Aheadworks</a></li>`;
+      state.modules.filter(m => !q || m.module.toLowerCase().includes(q)).forEach(m => {
+        html += `<li><a href="/module/${encodeURIComponent(m.module)}" data-mod="${esc(m.module)}" class="${state.module === m.module ? "active" : ""}">
+          <span>${esc(m.module)}</span><span class="badge">${m.plugins}p</span></a></li>`;
+      });
+      ul.innerHTML = html;
+      ul.querySelectorAll("a").forEach(a => a.addEventListener("click", e => {
+        e.preventDefault();
+        if (a.dataset.all) { history.pushState({}, "", "/"); openAheadworks(); }
+        else { history.pushState({}, "", `/module/${encodeURIComponent(a.dataset.mod)}`); openModule(a.dataset.mod); }
+      }));
+    }
+
+    function wiringFilters(barKind) {
+      if (barKind === "aheadworks") {
+        // Overview: module ↔ module / Magento_core only
+        return {
+          WRAPS: () => document.getElementById("fWraps")?.checked !== false,
+          PREFERENCE: () => document.getElementById("fPref")?.checked !== false,
+        };
+      }
+      return {
+        WRAPS: () => document.getElementById("fPlugins")?.checked !== false,
+        WRAPS_INBOUND: () => document.getElementById("fInbound")?.checked !== false,
+        PREFERENCE: () => document.getElementById("fPrefs")?.checked !== false,
+        OBSERVES: () => document.getElementById("fObs")?.checked !== false,
+        HANDLES: () => document.getElementById("fApi")?.checked !== false,
+        VIRTUAL_OF: () => document.getElementById("fVirtual")?.checked !== false,
+        CONTAINS: () => true,
+      };
+    }
+
+    function renderAheadworks() {
+      const g = state.data;
+      const st = g.stats || {};
+      const main = document.getElementById("main");
+      main.innerHTML = `
+        <div class="galaxy-bar">
+          <button type="button" id="tabGalaxy" class="${state.view === "galaxy" ? "active" : "ghost"}">Galaxy</button>
+          <button type="button" id="tabTables" class="${state.view === "tables" ? "active" : "ghost"}">Tables</button>
+          <span class="sep"></span>
+          <button type="button" id="dispGalaxy" class="${state.display === "galaxy" ? "active" : "ghost"}">cloud</button>
+          <button type="button" id="dispHierarchy" class="${state.display === "hierarchy" ? "active" : "ghost"}">hierarchy</button>
+          <span class="sep"></span>
+          <label><input type="checkbox" id="fWraps" checked /> WRAPS</label>
+          <label><input type="checkbox" id="fPref" checked /> PREFERENCE</label>
+          <label><input type="checkbox" id="fCore" checked /> Magento_core</label>
+          <label><input type="checkbox" id="fOther" /> Other</label>
+          <span class="sep"></span>
+          <label>Labels
+            <select id="labelRange">
+              <option value="nearby" ${state.showLabels === "nearby" ? "selected" : ""}>Nearby</option>
+              <option value="all" ${state.showLabels === "all" ? "selected" : ""}>All</option>
+              <option value="selected" ${state.showLabels === "selected" ? "selected" : ""}>Selected</option>
+            </select>
+          </label>
+        </div>
+        <div id="viewBody"></div>
+      `;
+      const body = document.getElementById("viewBody");
+      const redraw = () => {
+        if (state.view === "tables") {
+          destroyGraph();
+          body.innerHTML = `<div class="tables">
+            <div class="cards">
+              <div class="card"><div class="n">${st.modules ?? 0}</div><div class="l">Modules</div></div>
+              <div class="card"><div class="n">${st.nodes ?? 0}</div><div class="l">Nodes</div></div>
+              <div class="card"><div class="n">${st.wrapsBetweenAw ?? 0}</div><div class="l">AW ↔ AW</div></div>
+              <div class="card"><div class="n">${st.wrapsToCore ?? 0}</div><div class="l">→ Magento</div></div>
+            </div>
+            <h4>Sample wiring edges</h4>
+            <table><thead><tr><th>From</th><th>To</th><th>Kind</th><th>Count</th></tr></thead><tbody>
+              ${(g.links || []).filter(l => l.kind !== "CONTAINS").slice(0, 200).map(l => `<tr><td><code>${esc(l.source)}</code></td><td><code>${esc(l.target)}</code></td><td>${esc(l.kind)}</td><td>${l.count || 1}</td></tr>`).join("")}
+            </tbody></table>
+          </div>`;
+          return;
+        }
+        body.innerHTML = `<div class="stage-wrap"><div class="stage" id="stage"></div><aside class="inspector" id="inspector"></aside></div>`;
+        const allow = wiringFilters("aheadworks");
+        const showCore = document.getElementById("fCore").checked;
+        const showOther = document.getElementById("fOther").checked;
+        let links = (g.links || []).filter(l => {
+          const fn = allow[l.kind];
+          if (fn && !fn()) return false;
+          return true;
+        });
+        if (!showCore) links = links.filter(l => l.source !== "Magento_core" && l.target !== "Magento_core");
+        if (!showOther) links = links.filter(l => l.source !== "Other" && l.target !== "Other");
+        // Only modules that participate in an edge — isolates blow zoomToFit and kill the CBM look
+        const used = new Set();
+        links.forEach(l => { used.add(l.source); used.add(l.target); });
+        if (showCore && [...used].some(id => id !== "Magento_core")) used.add("Magento_core");
+        const nodes = (g.nodes || []).filter(n => used.has(n.id));
+        requestAnimationFrame(() => draw3d(nodes, links));
+      };
+      document.getElementById("tabGalaxy").onclick = () => { state.view = "galaxy"; renderAheadworks(); };
+      document.getElementById("tabTables").onclick = () => { state.view = "tables"; renderAheadworks(); };
+      document.getElementById("dispGalaxy").onclick = () => { state.display = "galaxy"; renderAheadworks(); };
+      document.getElementById("dispHierarchy").onclick = () => { state.display = "hierarchy"; renderAheadworks(); };
+      document.getElementById("labelRange").onchange = (e) => {
+        state.showLabels = e.target.value;
+        if (state._labelApply) state._labelApply();
+      };
+      ["fWraps","fPref","fCore","fOther"].forEach(id => document.getElementById(id).addEventListener("change", redraw));
+      redraw();
+    }
+
+    function renderModule() {
+      const g = state.data;
+      const tables = state.tables;
+      const st = g.stats || {};
+      const main = document.getElementById("main");
+      main.innerHTML = `
+        <div class="galaxy-bar">
+          <button type="button" class="ghost" id="backAll">← All</button>
+          <strong style="color:var(--atlas-phosphor);font-size:12px">${esc(g.module)}</strong>
+          <span class="sep"></span>
+          <button type="button" id="tabGalaxy" class="${state.view === "galaxy" ? "active" : "ghost"}">Galaxy</button>
+          <button type="button" id="tabTables" class="${state.view === "tables" ? "active" : "ghost"}">Tables</button>
+          <span class="sep"></span>
+          <button type="button" id="dispGalaxy" class="${state.display === "galaxy" ? "active" : "ghost"}">cloud</button>
+          <button type="button" id="dispHierarchy" class="${state.display === "hierarchy" ? "active" : "ghost"}">hierarchy</button>
+          <span class="sep"></span>
+          <label><input type="checkbox" id="fPlugins" checked /> plugins</label>
+          <label><input type="checkbox" id="fInbound" checked /> inbound</label>
+          <label><input type="checkbox" id="fPrefs" checked /> preferences</label>
+          <label><input type="checkbox" id="fObs" checked /> observers</label>
+          <label><input type="checkbox" id="fApi" checked /> webapi</label>
+          <label><input type="checkbox" id="fVirtual" checked /> virtualTypes</label>
+          <label title="Ownership edges to module hub"><input type="checkbox" id="fContains" checked /> in module</label>
+          <span class="sep"></span>
+          <label>Labels
+            <select id="labelRange">
+              <option value="nearby" ${state.showLabels === "nearby" ? "selected" : ""}>Nearby</option>
+              <option value="all" ${state.showLabels === "all" ? "selected" : ""}>All</option>
+              <option value="selected" ${state.showLabels === "selected" ? "selected" : ""}>Selected</option>
+            </select>
+          </label>
+        </div>
+        <div id="viewBody"></div>
+      `;
+      const body = document.getElementById("viewBody");
+      const redraw = () => {
+        if (state.view === "tables") {
+          destroyGraph();
+          const c = tables.counts || {};
+          body.innerHTML = `<div class="tables">
+            <div class="cards">
+              <div class="card"><div class="n">${c.plugins||0}</div><div class="l">Plugins</div></div>
+              <div class="card"><div class="n">${st.inboundPlugins||0}</div><div class="l">Inbound</div></div>
+              <div class="card"><div class="n">${c.preferences||0}</div><div class="l">Preferences</div></div>
+              <div class="card"><div class="n">${st.crossAw||0}</div><div class="l">Cross-AW</div></div>
+            </div>
+            <h4>Plugins</h4>
+            <table><thead><tr><th>Name</th><th>Type</th><th>Target</th></tr></thead><tbody>
+              ${(tables.plugins||[]).map(p=>`<tr><td><code>${esc(p.name)}</code></td><td><code>${esc(p.type)}</code></td><td><code>${esc(p.target)}</code></td></tr>`).join("")}
+            </tbody></table>
+          </div>`;
+          return;
+        }
+        body.innerHTML = `<div class="stage-wrap"><div class="stage" id="stage"></div><aside class="inspector" id="inspector"></aside></div>`;
+        const allow = wiringFilters("module");
+        const links = (g.links || []).filter(l => {
+          const fn = allow[l.kind];
+          return fn ? fn() : true;
+        });
+        const used = new Set();
+        links.forEach(l => { used.add(l.source); used.add(l.target); });
+        const nodes = (g.nodes || []).filter(n => used.has(n.id));
+        requestAnimationFrame(() => draw3d(nodes, links));
+      };
+      document.getElementById("backAll").onclick = () => { history.pushState({}, "", "/"); openAheadworks(); };
+      document.getElementById("tabGalaxy").onclick = () => { state.view = "galaxy"; renderModule(); };
+      document.getElementById("tabTables").onclick = () => { state.view = "tables"; renderModule(); };
+      document.getElementById("dispGalaxy").onclick = () => { state.display = "galaxy"; renderModule(); };
+      document.getElementById("dispHierarchy").onclick = () => { state.display = "hierarchy"; renderModule(); };
+      document.getElementById("labelRange").onchange = (e) => {
+        state.showLabels = e.target.value;
+        if (state._labelApply) state._labelApply();
+      };
+      ["fPlugins","fInbound","fPrefs","fObs","fApi","fVirtual","fContains"].forEach(id => document.getElementById(id).addEventListener("change", redraw));
+      redraw();
+    }
+
+    async function openAheadworks() {
+      state.scope = "aheadworks"; state.module = null; state.selected = null;
+      destroyGraph();
+      renderList();
+      document.getElementById("main").innerHTML = `<div class="empty">Building Aheadworks Galaxy…</div>`;
+      state.data = await (await fetch("/api/galaxy/aheadworks")).json();
+      renderAheadworks();
+    }
+    async function openModule(name) {
+      state.scope = "module"; state.module = name; state.selected = null;
+      destroyGraph();
+      renderList();
+      document.getElementById("main").innerHTML = `<div class="empty">Loading ${esc(name)}…</div>`;
+      const [g, tables] = await Promise.all([
+        (await fetch(`/api/galaxy/modules/${encodeURIComponent(name)}`)).json(),
+        (await fetch(`/api/modules/${encodeURIComponent(name)}`)).json(),
+      ]);
+      if (g.error) { document.getElementById("main").innerHTML = `<div class="err">${esc(g.error)}</div>`; return; }
+      state.data = g; state.tables = tables;
+      renderModule();
+    }
+
+    document.getElementById("filter").addEventListener("input", renderList);
+    document.getElementById("refreshBtn").addEventListener("click", async () => {
+      document.getElementById("statsLine").textContent = "Refreshing…";
+      await fetch("/api/refresh", { method: "POST" });
+      await loadStats(); await loadModules();
+      if (state.scope === "module" && state.module) await openModule(state.module);
+      else await openAheadworks();
+    });
+    window.addEventListener("popstate", () => {
+      const m = location.pathname.match(/^\/module\/([^/]+)/);
+      if (m) openModule(decodeURIComponent(m[1])); else openAheadworks();
+    });
+    (async () => {
+      await loadStats(); await loadModules();
+      const m = location.pathname.match(/^\/module\/([^/]+)/);
+      if (m) openModule(decodeURIComponent(m[1])); else openAheadworks();
+    })();
+  </script>
+</body>
+</html>
